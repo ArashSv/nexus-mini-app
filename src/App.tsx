@@ -1,8 +1,12 @@
 import React, { useEffect } from 'react';
 import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { TonConnectUIProvider } from '@tonconnect/ui-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { TasksPage } from '@/pages/TasksPage';
+import { WalletPage } from '@/pages/WalletPage';
+import { ReferralPage } from '@/pages/ReferralPage';
+import { MorePage } from '@/pages/MorePage';
 import { useAppStore } from '@/store/useAppStore';
 import { api } from '@/lib/api-client';
 import { Toaster } from '@/components/ui/sonner';
@@ -14,9 +18,9 @@ const router = createBrowserRouter([
     element: <MobileLayout />,
     children: [
       { index: true, element: <TasksPage /> },
-      { path: 'wallet', element: <div className="p-4 text-center">Wallet Coming Soon</div> },
-      { path: 'referral', element: <div className="p-4 text-center">Referral Coming Soon</div> },
-      { path: 'more', element: <div className="p-4 text-center">Settings Coming Soon</div> },
+      { path: 'wallet', element: <WalletPage /> },
+      { path: 'referral', element: <ReferralPage /> },
+      { path: 'more', element: <MorePage /> },
       { path: '*', element: <Navigate to="/" /> },
     ],
   },
@@ -30,15 +34,21 @@ export default function App() {
       tg?.ready();
       tg?.expand();
       try {
-        const userData = await api<any>('/api/auth/verify', { 
-          method: 'POST', 
-          body: JSON.stringify({ initData: tg?.initData || 'demo' }) 
+        const userData = await api<any>('/api/auth/verify', {
+          method: 'POST',
+          body: JSON.stringify({ initData: tg?.initData || 'demo' })
         });
         setUser(userData);
       } catch (e) {
         console.error("Failed to auth", e);
-        // Fallback for dev
-        setUser({ id: 'demo-user', name: 'Nexus Voyager', balance: 500, referralCount: 0 });
+        setUser({ 
+          id: 'demo-user', 
+          name: 'Nexus Voyager', 
+          balance: 500, 
+          referralCount: 0,
+          totalEarned: 500,
+          referralLink: 'https://t.me/nexus_bot?start=ref123'
+        });
       } finally {
         setLoaded(true);
       }
@@ -46,9 +56,11 @@ export default function App() {
     initApp();
   }, [setUser, setLoaded]);
   return (
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-      <Toaster position="top-center" richColors />
-    </QueryClientProvider>
+    <TonConnectUIProvider manifestUrl="https://nexus-mini-app.pages.dev/tonconnect-manifest.json">
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+        <Toaster position="top-center" richColors />
+      </QueryClientProvider>
+    </TonConnectUIProvider>
   );
 }
