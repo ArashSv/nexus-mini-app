@@ -78,7 +78,8 @@ function updateWranglerJsonc() {
 
 function runSetupCommands() {
     const commands = [
-    "bun add react-qr-code@^2.0.16"
+    "bun add react-qr-code@^2.0.16",
+    "bun add @tonconnect/ui-react"
 ];
     
     if (commands.length === 0) {
