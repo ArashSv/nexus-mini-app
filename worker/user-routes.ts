@@ -1,58 +1,92 @@
 import { Hono } from "hono";
 import type { Env } from './core-utils';
 import { ok, bad, notFound } from './core-utils';
+import type { User, Task, Transaction, Referral, TaskResponse } from "@shared/types";
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // AUTH
   app.post('/api/auth/verify', async (c) => {
-    const mockUser = {
-      id: 'u_' + Math.random().toString(36).slice(2, 9),
-      name: 'Nexus Explorer',
-      balance: 1250,
+    // In production, verify c.req.json().initData here
+    const mockUser: User = {
+      id: 'u_12345',
+      displayName: 'Nexus Explorer',
+      avatarUrl: '',
+      balanceUSD: 42.50,
+      balanceNEX: 1250,
+      referralLink: 'https://t.me/nexus_bot?start=r123',
       totalEarned: 2400,
       referralCount: 5,
-      referralLink: 'https://t.me/nexus_bot?start=r_exp'
+      walletAddress: undefined
+    };
+    return ok(c, mockUser);
+  });
+  // USER PROFILE
+  app.get('/api/user/:userId', async (c) => {
+    const mockUser: User = {
+      id: c.req.param('userId'),
+      displayName: 'Nexus Explorer',
+      balanceUSD: 42.50,
+      balanceNEX: 1250,
+      referralLink: 'https://t.me/nexus_bot?start=r123',
+      totalEarned: 2400,
+      referralCount: 5
     };
     return ok(c, mockUser);
   });
   // TASKS
-  app.get('/api/user/:id/tasks', async (c) => {
-    const tasks = [
-      { id: 't1', title: 'Follow Nexus on X', reward: 100, completed: false, category: 'one-time' },
-      { id: 't2', title: 'Join Telegram Channel', reward: 150, completed: false, category: 'one-time' },
-      { id: 't3', title: 'Daily Check-in', reward: 50, completed: false, category: 'daily' },
-      { id: 't4', title: 'Invite 3 Friends', reward: 500, completed: false, category: 'weekly' },
-    ];
-    return ok(c, tasks);
+  app.get('/api/user/:userId/tasks', async (c) => {
+    const data: TaskResponse = {
+      sections: [
+        {
+          id: 's1',
+          title: 'Daily Missions',
+          tasks: [
+            { id: 't1', title: 'Daily Check-in', description: 'Log in every day to earn rewards', reward: 50, done: false, meta: { category: 'daily' } }
+          ]
+        },
+        {
+          id: 's2',
+          title: 'Social Growth',
+          tasks: [
+            { id: 't2', title: 'Join Telegram', description: 'Join our official community channel', reward: 100, done: false, meta: { category: 'optional', link: 'https://t.me/nexus' } },
+            { id: 't3', title: 'Follow on X', description: 'Stay updated with our latest tweets', reward: 150, done: false, meta: { category: 'optional', link: 'https://x.com/nexus' } }
+          ]
+        }
+      ]
+    };
+    return ok(c, data);
   });
-  app.post('/api/user/:id/tasks/complete', async (c) => {
-    const { taskId } = await c.req.json();
-    const rewards: Record<string, number> = { t1: 100, t2: 150, t3: 50, t4: 500 };
-    return ok(c, { success: true, reward: rewards[taskId] || 0 });
+  app.post('/api/user/:userId/tasks/:taskId/complete', async (c) => {
+    const taskId = c.req.param('taskId');
+    const updatedTask: Task = {
+      id: taskId,
+      title: 'Completed Task',
+      reward: 100,
+      done: true
+    };
+    return ok(c, { ok: true, updatedTask });
   });
   // WALLET
-  app.get('/api/user/:id/wallet/history', async (c) => {
-    const history = [
-      { id: 'tx1', type: 'Task Reward', amount: 100, status: 'Success', date: '2024-05-10' },
-      { id: 'tx2', type: 'Referral Bonus', amount: 150, status: 'Success', date: '2024-05-09' },
+  app.get('/api/user/:userId/transactions', async (c) => {
+    const txs: Transaction[] = [
+      { id: 'tx1', timestamp: Date.now(), type: 'in', amountTON: 0, amountNEX: 100, status: 'success' },
+      { id: 'tx2', timestamp: Date.now() - 86400000, type: 'in', amountTON: 0, amountNEX: 250, status: 'success' }
     ];
-    return ok(c, history);
+    return ok(c, { transactions: txs });
   });
-  app.post('/api/user/:id/withdraw', async (c) => {
-    const body = await c.req.json();
-    if (!body.amount || body.amount <= 0) return bad(c, 'Invalid amount');
-    // Simulate processing
-    return ok(c, { txHash: '0x' + Math.random().toString(16).slice(2, 10), status: 'pending' });
+  app.post('/api/wallet/withdraw', async (c) => {
+    return ok(c, { withdrawalId: crypto.randomUUID(), status: 'pending' });
   });
   // REFERRALS
-  app.get('/api/user/:id/referrals', async (c) => {
-    const referrals = [
-      { id: 'r1', name: 'AlphaUser', earnings: 150, joined: '2024-05-08' },
-      { id: 'r2', name: 'BetaTester', earnings: 300, joined: '2024-05-07' },
-    ];
-    return ok(c, { totalInvites: 5, totalEarnings: 750, items: referrals });
-  });
-  // FALLBACKS
-  app.get('/api/user/:id', async (c) => {
-    return ok(c, { id: c.req.param('id'), name: 'Nexus Explorer', balance: 1250 });
+  app.get('/api/user/:userId/referral', async (c) => {
+    const data: Referral = {
+      link: 'https://t.me/nexus_bot?start=r123',
+      countInvited: 5,
+      totalEarnings: 750,
+      invited: [
+        { id: 'i1', name: 'AlphaUser', joinedAt: Date.now() - 172800000, contribution: 150 },
+        { id: 'i2', name: 'BetaTester', joinedAt: Date.now() - 86400000, contribution: 300 }
+      ]
+    };
+    return ok(c, data);
   });
 }

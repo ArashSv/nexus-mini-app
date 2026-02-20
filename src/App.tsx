@@ -11,6 +11,7 @@ import { useAppStore } from '@/store/useAppStore';
 import { api } from '@/lib/api-client';
 import { Toaster } from '@/components/ui/sonner';
 import { getTelegramWebApp } from '@/lib/telegram';
+import { User } from '@shared/types';
 const queryClient = new QueryClient();
 const router = createBrowserRouter([
   {
@@ -34,17 +35,24 @@ export default function App() {
       tg?.ready();
       tg?.expand();
       try {
-        const userData = await api<any>('/api/auth/verify', {
+        const initData = tg?.initData || 'demo';
+        const userData = await api<User>('/api/auth/verify', {
           method: 'POST',
-          body: JSON.stringify({ initData: tg?.initData || 'demo' })
+          body: JSON.stringify({ initData })
         });
-        setUser(userData);
+        if (userData && typeof userData === 'object') {
+          setUser(userData);
+        } else {
+          throw new Error('Invalid user data received');
+        }
       } catch (e) {
-        console.error("Failed to auth", e);
-        setUser({ 
-          id: 'demo-user', 
-          name: 'Nexus Voyager', 
-          balance: 500, 
+        console.error("[CRITICAL] Auth verification failed. Falling back to demo mode.", e);
+        // Robust fallback for development/failures
+        setUser({
+          id: 'demo-user',
+          displayName: 'Nexus Voyager',
+          balanceNEX: 500,
+          balanceUSD: 15.00,
           referralCount: 0,
           totalEarned: 500,
           referralLink: 'https://t.me/nexus_bot?start=ref123'

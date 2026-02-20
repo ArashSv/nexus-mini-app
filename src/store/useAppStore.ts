@@ -1,17 +1,9 @@
 import { create } from 'zustand';
-interface UserProfile {
-  id: string;
-  name: string;
-  balance: number;
-  referralCount: number;
-  totalEarned: number;
-  referralLink?: string;
-  walletAddress?: string;
-}
+import { User } from '@shared/types';
 interface AppState {
-  user: UserProfile | null;
+  user: User | null;
   isLoaded: boolean;
-  setUser: (user: UserProfile) => void;
+  setUser: (user: User) => void;
   updateBalance: (amount: number) => void;
   setLoaded: (loaded: boolean) => void;
   setWalletAddress: (address: string) => void;
@@ -21,9 +13,9 @@ export const useAppStore = create<AppState>((set) => ({
   isLoaded: false,
   setUser: (user) => set({ user }),
   updateBalance: (amount) => set((state) => ({
-    user: state.user ? { 
-      ...state.user, 
-      balance: state.user.balance + amount,
+    user: state.user ? {
+      ...state.user,
+      balanceNEX: state.user.balanceNEX + amount,
       totalEarned: state.user.totalEarned + (amount > 0 ? amount : 0)
     } : null
   })),

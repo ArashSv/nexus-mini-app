@@ -3,22 +3,58 @@ export interface ApiResponse<T = unknown> {
   data?: T;
   error?: string;
 }
-
-// Minimal real-world chat example types (shared by frontend and worker)
 export interface User {
   id: string;
-  name: string;
+  displayName: string;
+  avatarUrl?: string;
+  balanceUSD: number;
+  balanceNEX: number;
+  walletAddress?: string;
+  referralLink: string;
+  totalEarned: number;
+  referralCount: number;
 }
-
-export interface Chat {
+export interface Task {
   id: string;
   title: string;
+  description?: string;
+  reward: number;
+  done: boolean;
+  meta?: {
+    category?: 'daily' | 'weekly' | 'optional';
+    icon?: string;
+    link?: string;
+  };
 }
-
-export interface ChatMessage {
+export interface Transaction {
   id: string;
-  chatId: string;
-  userId: string;
-  text: string;
-  ts: number; // epoch millis
+  timestamp: number;
+  type: 'in' | 'out';
+  amountTON: number;
+  amountNEX?: number;
+  status: 'pending' | 'success' | 'failed';
+  txHash?: string;
+}
+export interface Referral {
+  link: string;
+  countInvited: number;
+  totalEarnings: number;
+  invited: Array<{
+    id: string;
+    name: string;
+    joinedAt: number;
+    contribution: number;
+  }>;
+}
+export interface WithdrawalRequest {
+  withdrawalId: string;
+  status: 'pending' | 'confirmed';
+}
+export interface TaskSection {
+  id: string;
+  title: string;
+  tasks: Task[];
+}
+export interface TaskResponse {
+  sections: TaskSection[];
 }
