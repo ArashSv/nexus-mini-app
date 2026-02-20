@@ -8,14 +8,14 @@ import { MOCK_CHAT_MESSAGES, MOCK_CHATS, MOCK_USERS } from "@shared/mock-data";
 export class UserEntity extends IndexedEntity<User> {
   static readonly entityName = "user";
   static readonly indexName = "users";
-  static readonly initialState: User = { 
-    id: "", 
-    displayName: "", 
-    balanceUSD: 0, 
-    balanceNEX: 0, 
-    referralLink: "", 
-    totalEarned: 0, 
-    referralCount: 0 
+  static readonly initialState: User = {
+    id: "",
+    displayName: "",
+    balanceUSD: 0,
+    balanceNEX: 0,
+    referralLink: "",
+    totalEarned: 0,
+    referralCount: 0
   };
   static seedData = MOCK_USERS;
 }

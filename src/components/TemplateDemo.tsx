@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Send, User as UserIcon, MessageSquare, Plus, Trash2, Database, Shield, Layout, RefreshCw } from 'lucide-react';
 import { api } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -19,15 +19,16 @@ export function TemplateDemo() {
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    loadAll();
-  }, []);
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  const selectChat = useCallback(async (chat: Chat) => {
+    setSelectedChat(chat);
+    try {
+      const msgs = await api<ChatMessage[]>(`/api/demo/chats/${chat.id}/messages`);
+      setMessages(msgs);
+    } catch (e) {
+      setMessages([]);
     }
-  }, [messages]);
-  const loadAll = async () => {
+  }, []);
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const [uRes, cRes] = await Promise.all([
@@ -43,16 +44,15 @@ export function TemplateDemo() {
     } finally {
       setLoading(false);
     }
-  };
-  const selectChat = async (chat: Chat) => {
-    setSelectedChat(chat);
-    try {
-      const msgs = await api<ChatMessage[]>(`/api/demo/chats/${chat.id}/messages`);
-      setMessages(msgs);
-    } catch (e) {
-      setMessages([]);
+  }, [selectedUser, selectedChat, selectChat]);
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  };
+  }, [messages]);
   const createUser = async () => {
     if (!newUserName.trim()) return;
     try {
@@ -60,7 +60,7 @@ export function TemplateDemo() {
         method: 'POST',
         body: JSON.stringify({ name: newUserName.trim() }),
       });
-      setUsers([...users, u]);
+      setUsers(prev => [...prev, u]);
       setNewUserName('');
       toast.success('User created');
     } catch (e) {
@@ -74,7 +74,7 @@ export function TemplateDemo() {
         method: 'POST',
         body: JSON.stringify({ title: newChatTitle.trim() }),
       });
-      setChats([...chats, c]);
+      setChats(prev => [...prev, c]);
       setNewChatTitle('');
       toast.success('Chat created');
     } catch (e) {
@@ -88,7 +88,7 @@ export function TemplateDemo() {
         method: 'POST',
         body: JSON.stringify({ userId: selectedUser.id, text: newMessage.trim() }),
       });
-      setMessages([...messages, msg]);
+      setMessages(prev => [...prev, msg]);
       setNewMessage('');
     } catch (e) {
       toast.error('Failed to send message');
@@ -97,7 +97,7 @@ export function TemplateDemo() {
   const deleteUser = async (id: string) => {
     try {
       await api(`/api/demo/users/${id}`, { method: 'DELETE' });
-      setUsers(users.filter((u) => u.id !== id));
+      setUsers(prev => prev.filter((u) => u.id !== id));
       if (selectedUser?.id === id) setSelectedUser(null);
       toast.info('User deleted');
     } catch (e) {
