@@ -79,7 +79,8 @@ function updateWranglerJsonc() {
 function runSetupCommands() {
     const commands = [
     "bun add react-qr-code@^2.0.16",
-    "bun add @tonconnect/ui-react"
+    "bun add @tonconnect/ui-react",
+    "bun add react-swipeable"
 ];
     
     if (commands.length === 0) {
