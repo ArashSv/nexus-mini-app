@@ -1,5 +1,7 @@
 {
   "url": "https://nexus-mini-app.pages.dev",
   "name": "Nexus Mini App",
-  "iconUrl": "https://via.placeholder.com/512x512/6366f1/ffffff?text=Nexus+"
+  "iconUrl": "https://nexus-mini-app.pages.dev/icon-512.png",
+  "termsOfUseUrl": "https://nexus-mini-app.pages.dev/terms",
+  "privacyPolicyUrl": "https://nexus-mini-app.pages.dev/privacy"
 }

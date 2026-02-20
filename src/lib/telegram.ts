@@ -18,9 +18,37 @@ export const hapticFeedback = {
     tg?.HapticFeedback?.selectionChanged();
   }
 };
+export const backButton = {
+  show: (onClick: () => void) => {
+    const tg = getTelegramWebApp();
+    if (tg?.BackButton) {
+      tg.BackButton.show();
+      tg.BackButton.onClick(onClick);
+    }
+  },
+  hide: () => {
+    const tg = getTelegramWebApp();
+    if (tg?.BackButton) {
+      tg.BackButton.hide();
+      tg.BackButton.offClick(() => {});
+    }
+  }
+};
 export const getInitData = () => {
   const tg = getTelegramWebApp();
   return tg?.initData || '';
+};
+export const getThemeParams = () => {
+  const tg = getTelegramWebApp();
+  return {
+    colorScheme: tg?.colorScheme || 'dark',
+    headerColor: tg?.headerColor,
+    backgroundColor: tg?.backgroundColor,
+  };
+};
+export const getPlatform = () => {
+  const tg = getTelegramWebApp();
+  return tg?.platform || 'unknown';
 };
 export const closeWebApp = () => {
   getTelegramWebApp()?.close();

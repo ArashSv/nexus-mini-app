@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { GlassCard } from '@/components/ui/glass-card';
 import { Button } from '@/components/ui/button';
-import { CheckCircle2, Star, Zap, Clock } from 'lucide-react';
+import { CheckCircle2, Star, Zap, Clock, RefreshCw } from 'lucide-react';
 import { hapticFeedback } from '@/lib/telegram';
 import { useAppStore } from '@/store/useAppStore';
 import { api } from '@/lib/api-client';
@@ -14,7 +14,7 @@ export function TasksPage() {
   const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.user?.id);
   const updateBalance = useAppStore((s) => s.updateBalance);
-  const { data, isLoading } = useQuery<TaskResponse>({
+  const { data, isLoading, isRefetching, refetch } = useQuery<TaskResponse>({
     queryKey: ['tasks', userId],
     queryFn: () => api<TaskResponse>(`/api/user/${userId || 'me'}/tasks`),
     enabled: !!userId,
@@ -30,6 +30,24 @@ export function TasksPage() {
       queryClient.invalidateQueries({ queryKey: ['tasks', userId] });
     },
   });
+  const renderTaskSkeleton = () => (
+    <div className="space-y-3">
+      {[1, 2, 3].map((i) => (
+        <GlassCard key={i} className="p-4 mb-3 border-white/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Skeleton className="w-10 h-10 rounded-full bg-white/5" />
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-24 bg-white/5" />
+                <Skeleton className="h-3 w-16 bg-white/5" />
+              </div>
+            </div>
+            <Skeleton className="h-8 w-16 rounded-full bg-white/5" />
+          </div>
+        </GlassCard>
+      ))}
+    </div>
+  );
   const renderTask = (task: Task, idx: number) => (
     <motion.div
       key={task.id}
@@ -73,47 +91,56 @@ export function TasksPage() {
     </motion.div>
   );
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="py-8 md:py-10 lg:py-12 space-y-8">
+    <div className="space-y-8">
+      <div className="flex items-end justify-between">
         <div className="space-y-1">
           <h1 className="text-2xl font-display font-black text-white">Nexus Hub</h1>
-          <p className="text-slate-400 text-sm">Complete missions to secure your NEX tokens.</p>
+          <p className="text-slate-400 text-sm">Complete missions for NEX rewards.</p>
         </div>
-        {isLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-40 w-full rounded-3xl bg-white/5" />
-            <Skeleton className="h-20 w-full rounded-2xl bg-white/5" />
-            <Skeleton className="h-20 w-full rounded-2xl bg-white/5" />
-          </div>
-        ) : (
-          <>
-            <motion.div
-              whileHover={{ scale: 1.01 }}
-              className="p-6 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-800 shadow-glow relative overflow-hidden"
-            >
-              <div className="relative z-10">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-blue-200">Season 1</span>
-                <h2 className="text-xl font-black text-white mt-1">Founders Airdrop</h2>
-                <p className="text-blue-100 text-xs mt-2 max-w-[200px]">Complete all social tasks to qualify for the genesis pool.</p>
-              </div>
-              <Zap className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-white/10 rotate-12" />
-            </motion.div>
-            <div className="space-y-8 pb-20">
-              {data?.sections.map((section) => (
-                <section key={section.id} className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-blue-400" />
-                    <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">{section.title}</h2>
-                  </div>
-                  <div className="space-y-3">
-                    {section.tasks.map((task, idx) => renderTask(task, idx))}
-                  </div>
-                </section>
-              ))}
-            </div>
-          </>
-        )}
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="rounded-full bg-white/5 hover:bg-white/10"
+          onClick={() => {
+            hapticFeedback.impact('medium');
+            refetch();
+          }}
+          disabled={isRefetching}
+        >
+          <RefreshCw className={cn("w-4 h-4 text-slate-400", isRefetching && "animate-spin")} />
+        </Button>
       </div>
+      {isLoading ? (
+        <div className="space-y-8">
+          <Skeleton className="h-40 w-full rounded-3xl bg-white/5" />
+          {renderTaskSkeleton()}
+        </div>
+      ) : (
+        <div className="space-y-8 pb-20">
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            className="p-6 rounded-3xl bg-gradient-to-br from-blue-600 to-indigo-800 shadow-glow relative overflow-hidden"
+          >
+            <div className="relative z-10">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-blue-200">Season 1</span>
+              <h2 className="text-xl font-black text-white mt-1">Founders Airdrop</h2>
+              <p className="text-blue-100 text-xs mt-2 max-w-[200px]">Complete community tasks to qualify for the genesis pool.</p>
+            </div>
+            <Zap className="absolute right-[-20px] bottom-[-20px] w-32 h-32 text-white/10 rotate-12" />
+          </motion.div>
+          {data?.sections.map((section) => (
+            <section key={section.id} className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-400" />
+                <h2 className="text-xs font-bold uppercase tracking-widest text-slate-500">{section.title}</h2>
+              </div>
+              <div className="space-y-3">
+                {section.tasks.map((task, idx) => renderTask(task, idx))}
+              </div>
+            </section>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
