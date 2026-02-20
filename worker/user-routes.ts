@@ -5,9 +5,48 @@ import type { User, Task, Transaction, Referral, TaskResponse } from "@shared/ty
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // AUTH
   app.post('/api/auth/verify', async (c) => {
-    // In production, verify c.req.json().initData here
+    const initData = await c.req.text();
+
+    if (!initData || initData === 'demo') {
+      const mockUser: User = {
+        id: 'u_12345',
+        displayName: 'Nexus Explorer',
+        avatarUrl: '',
+        balanceUSD: 42.50,
+        balanceNEX: 1250,
+        referralLink: 'https://t.me/nexus_bot?start=r123',
+        totalEarned: 2400,
+        referralCount: 5,
+        walletAddress: undefined
+      };
+      return ok(c, mockUser);
+    }
+
+    // Simple hash-based userId derivation (mock verification)
+    const encoder = new TextEncoder();
+    const data = encoder.encode(initData);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const userId = 'u_' + hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    const user: User = {
+      id: userId,
+      displayName: 'Telegram User',
+      avatarUrl: '',
+      balanceUSD: 0,
+      balanceNEX: 0,
+      referralLink: `https://t.me/nexus_bot?start=${userId.slice(2)}`,
+      totalEarned: 0,
+      referralCount: 0,
+      walletAddress: undefined
+    };
+    
+    return ok(c, user);
+  });
+  // USER PROFILE
+  app.get('/api/user/:userId', async (c) => {
     const mockUser: User = {
-      id: 'u_12345',
+      id: c.req.param('userId'),
       displayName: 'Nexus Explorer',
       avatarUrl: '',
       balanceUSD: 42.50,
@@ -16,19 +55,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       totalEarned: 2400,
       referralCount: 5,
       walletAddress: undefined
-    };
-    return ok(c, mockUser);
-  });
-  // USER PROFILE
-  app.get('/api/user/:userId', async (c) => {
-    const mockUser: User = {
-      id: c.req.param('userId'),
-      displayName: 'Nexus Explorer',
-      balanceUSD: 42.50,
-      balanceNEX: 1250,
-      referralLink: 'https://t.me/nexus_bot?start=r123',
-      totalEarned: 2400,
-      referralCount: 5
     };
     return ok(c, mockUser);
   });
@@ -67,11 +93,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   });
   // WALLET
   app.get('/api/user/:userId/transactions', async (c) => {
+    const limit = c.req.query('limit') || '20';
     const txs: Transaction[] = [
-      { id: 'tx1', timestamp: Date.now(), type: 'in', amountTON: 0, amountNEX: 100, status: 'success' },
-      { id: 'tx2', timestamp: Date.now() - 86400000, type: 'in', amountTON: 0, amountNEX: 250, status: 'success' }
+      { id: 'tx1', timestamp: Date.now(), type: 'in' as const, amountTON: 1.5, status: 'success', txHash: 'abc123' },
+      { id: 'tx2', timestamp: Date.now() - 86400000, type: 'in' as const, amountTON: 2.0, status: 'success', txHash: 'def456' }
     ];
-    return ok(c, { transactions: txs });
+    return ok(c, { transactions: txs.slice(0, parseInt(limit)) });
   });
   app.post('/api/wallet/withdraw', async (c) => {
     return ok(c, { withdrawalId: crypto.randomUUID(), status: 'pending' });

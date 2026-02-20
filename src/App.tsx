@@ -64,11 +64,11 @@ export default function App() {
     initApp();
   }, [setUser, setLoaded]);
   return (
-    <TonConnectUIProvider manifestUrl="https://nexus-mini-app.pages.dev/tonconnect-manifest.json">
+    <TonConnectUIProvider manifestUrl="/tonconnect-manifest.json">
       <QueryClientProvider client={queryClient}>
         <RouterProvider router={router} />
-        <Toaster position="top-center" richColors />
       </QueryClientProvider>
+      <Toaster position="top-center" richColors />
     </TonConnectUIProvider>
   );
 }
