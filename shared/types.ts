@@ -6,6 +6,7 @@ export interface ApiResponse<T = unknown> {
 export interface User {
   id: string;
   displayName: string;
+  name?: string; // Backward compatibility alias
   avatarUrl?: string;
   balanceUSD: number;
   balanceNEX: number;
@@ -13,6 +14,17 @@ export interface User {
   referralLink: string;
   totalEarned: number;
   referralCount: number;
+}
+export interface Chat {
+  id: string;
+  title: string;
+}
+export interface ChatMessage {
+  id: string;
+  chatId: string;
+  userId: string;
+  text: string;
+  ts: number;
 }
 export interface Task {
   id: string;

@@ -1,228 +1,278 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Separator } from '@/components/ui/separator'
-import { Textarea } from '@/components/ui/textarea'
-import type { Chat, ChatMessage, User } from '@shared/types'
-import { api } from '@/lib/api-client'
-
-export const HAS_TEMPLATE_DEMO = true
-
-const glassCard = 'backdrop-blur-xl bg-white/10 dark:bg-black/20 border-white/20 shadow-2xl'
-
+import React, { useState, useEffect, useRef } from 'react';
+import { Send, User as UserIcon, MessageSquare, Plus, Trash2, Database, Shield, Layout, RefreshCw } from 'lucide-react';
+import { api } from '@/lib/api-client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import type { User, Chat, ChatMessage } from '@shared/types';
+import { toast } from 'sonner';
+export const HAS_TEMPLATE_DEMO = true;
 export function TemplateDemo() {
-  const [users, setUsers] = useState<User[]>([])
-  const [chats, setChats] = useState<Chat[]>([])
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-
-  const [selectedUserId, setSelectedUserId] = useState<string>('')
-  const [selectedChatId, setSelectedChatId] = useState<string>('')
-
-  const [newUserName, setNewUserName] = useState('')
-  const [newChatTitle, setNewChatTitle] = useState('')
-  const [text, setText] = useState('')
-
-  const [loadingMessages, setLoadingMessages] = useState(false)
-
-  const usersById = useMemo(() => new Map(users.map((u) => [u.id, u])), [users])
-
-  const load = useCallback(async () => {
-    const [uPage, cPage] = await Promise.all([
-      api<{ items: User[]; next: string | null }>('/api/users'),
-      api<{ items: Chat[]; next: string | null }>('/api/chats'),
-    ])
-    setUsers(uPage.items)
-    setChats(cPage.items)
-
-    setSelectedUserId((prev) => prev || uPage.items[0]?.id || '')
-    setSelectedChatId((prev) => prev || cPage.items[0]?.id || '')
-  }, [])
-
-  const loadMessages = useCallback(async (chatId: string) => {
-    setLoadingMessages(true)
-    try {
-      const list = await api<ChatMessage[]>(`/api/chats/${chatId}/messages`)
-      setMessages(list)
-    } finally {
-      setLoadingMessages(false)
+  const [users, setUsers] = useState<User[]>([]);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [newUserName, setNewUserName] = useState('');
+  const [newChatTitle, setNewChatTitle] = useState('');
+  const [newMessage, setNewMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    loadAll();
+  }, []);
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [])
-
-  useEffect(() => {
-    load().catch(() => {})
-  }, [load])
-
-  useEffect(() => {
-    if (!selectedChatId) return
-    loadMessages(selectedChatId).catch(() => {})
-  }, [selectedChatId, loadMessages])
-
+  }, [messages]);
+  const loadAll = async () => {
+    setLoading(true);
+    try {
+      const [uRes, cRes] = await Promise.all([
+        api<{ items: User[] }>('/api/demo/users'),
+        api<{ items: Chat[] }>('/api/demo/chats'),
+      ]);
+      setUsers(uRes.items);
+      setChats(cRes.items);
+      if (uRes.items.length > 0 && !selectedUser) setSelectedUser(uRes.items[0]);
+      if (cRes.items.length > 0 && !selectedChat) selectChat(cRes.items[0]);
+    } catch (e) {
+      toast.error('Failed to load demo data');
+    } finally {
+      setLoading(false);
+    }
+  };
+  const selectChat = async (chat: Chat) => {
+    setSelectedChat(chat);
+    try {
+      const msgs = await api<ChatMessage[]>(`/api/demo/chats/${chat.id}/messages`);
+      setMessages(msgs);
+    } catch (e) {
+      setMessages([]);
+    }
+  };
   const createUser = async () => {
-    const name = newUserName.trim()
-    if (!name) return
-    const u = await api<User>('/api/users', { method: 'POST', body: JSON.stringify({ name }) })
-    setUsers((prev) => [...prev, u])
-    setNewUserName('')
-    setSelectedUserId((prev) => prev || u.id)
-  }
-
+    if (!newUserName.trim()) return;
+    try {
+      const u = await api<User>('/api/demo/users', {
+        method: 'POST',
+        body: JSON.stringify({ name: newUserName.trim() }),
+      });
+      setUsers([...users, u]);
+      setNewUserName('');
+      toast.success('User created');
+    } catch (e) {
+      toast.error('Failed to create user');
+    }
+  };
   const createChat = async () => {
-    const title = newChatTitle.trim()
-    if (!title) return
-    const c = await api<Chat>('/api/chats', { method: 'POST', body: JSON.stringify({ title }) })
-    setChats((prev) => [...prev, c])
-    setNewChatTitle('')
-    setSelectedChatId((prev) => prev || c.id)
-  }
-
-  const send = async () => {
-    const msg = text.trim()
-    if (!selectedUserId || !selectedChatId || !msg) return
-
-    const created = await api<ChatMessage>(`/api/chats/${selectedChatId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ userId: selectedUserId, text: msg }),
-    })
-
-    setMessages((prev) => [...prev, created])
-    setText('')
-  }
-
+    if (!newChatTitle.trim()) return;
+    try {
+      const c = await api<Chat>('/api/demo/chats', {
+        method: 'POST',
+        body: JSON.stringify({ title: newChatTitle.trim() }),
+      });
+      setChats([...chats, c]);
+      setNewChatTitle('');
+      toast.success('Chat created');
+    } catch (e) {
+      toast.error('Failed to create chat');
+    }
+  };
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedUser || !selectedChat) return;
+    try {
+      const msg = await api<ChatMessage>(`/api/demo/chats/${selectedChat.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ userId: selectedUser.id, text: newMessage.trim() }),
+      });
+      setMessages([...messages, msg]);
+      setNewMessage('');
+    } catch (e) {
+      toast.error('Failed to send message');
+    }
+  };
+  const deleteUser = async (id: string) => {
+    try {
+      await api(`/api/demo/users/${id}`, { method: 'DELETE' });
+      setUsers(users.filter((u) => u.id !== id));
+      if (selectedUser?.id === id) setSelectedUser(null);
+      toast.info('User deleted');
+    } catch (e) {
+      toast.error('Delete failed');
+    }
+  };
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <Card className={glassCard}>
-        <CardHeader>
-          <CardTitle className="text-base">Entities</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Users</div>
-            <div className="flex gap-2">
-              <Input placeholder="New user name" value={newUserName} onChange={(e) => setNewUserName(e.target.value)} />
-              <Button onClick={createUser} variant="outline">Add</Button>
+    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-4">
+      {/* Sidebar - Management */}
+      <div className="md:col-span-4 space-y-6">
+        <Card className="glass-dark border-white/10 text-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Database className="w-4 h-4 text-blue-400" />
+              Entities (Durable Objects)
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-xs">
+              Each user/chat is a unique DO instance
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Create New User</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Username"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  className="bg-white/5 border-white/10 h-8 text-xs"
+                />
+                <Button size="icon" className="h-8 w-8 shrink-0" onClick={createUser}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
             <div className="space-y-2">
-              {users.length ? users.slice(0, 6).map((u) => (
-                <button
-                  key={u.id}
-                  type="button"
-                  onClick={() => setSelectedUserId(u.id)}
-                  className={`w-full text-left flex items-center justify-between border rounded px-3 py-2 transition-colors ${selectedUserId === u.id ? 'bg-white/10 dark:bg-white/5' : 'hover:bg-white/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="font-medium">{u.name}</span>
-                  <span className="text-xs text-muted-foreground">{u.id.slice(0, 6)}…</span>
-                </button>
-              )) : (
-                <div className="text-sm text-muted-foreground">No users yet.</div>
-              )}
-            </div>
-          </div>
-
-          <Separator className="bg-white/10" />
-
-          <div className="space-y-2">
-            <div className="text-sm font-medium">Chats</div>
-            <div className="flex gap-2">
-              <Input placeholder="New chat title" value={newChatTitle} onChange={(e) => setNewChatTitle(e.target.value)} />
-              <Button onClick={createChat} variant="outline">Add</Button>
-            </div>
-            <div className="space-y-2">
-              {chats.length ? chats.slice(0, 6).map((c) => (
-                <button
-                  key={c.id}
-                  type="button"
-                  onClick={() => setSelectedChatId(c.id)}
-                  className={`w-full text-left flex items-center justify-between border rounded px-3 py-2 transition-colors ${selectedChatId === c.id ? 'bg-white/10 dark:bg-white/5' : 'hover:bg-white/5 dark:hover:bg-white/5'}`}
-                >
-                  <span className="font-medium">{c.title}</span>
-                  <span className="text-xs text-muted-foreground">{c.id.slice(0, 6)}…</span>
-                </button>
-              )) : (
-                <div className="text-sm text-muted-foreground">No chats yet.</div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className={`${glassCard} lg:col-span-2 flex flex-col`}>
-        <CardHeader>
-          <CardTitle className="text-base">Chat</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex flex-col gap-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select user" />
-              </SelectTrigger>
-              <SelectContent>
+              <label className="text-[10px] font-bold uppercase text-slate-500">Active Users</label>
+              <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
                 {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={selectedChatId} onValueChange={setSelectedChatId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select chat" />
-              </SelectTrigger>
-              <SelectContent>
-                {chats.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex-1 rounded-lg border bg-white/5 dark:bg-white/5 p-3 overflow-y-auto">
-            {loadingMessages ? (
-              <div className="text-sm text-muted-foreground">Loading messages…</div>
-            ) : messages.length ? (
-              <div className="space-y-2">
-                {messages.map((m) => (
-                  <div key={m.id} className="text-sm">
-                    <span className="font-medium">
-                      {usersById.get(m.userId)?.name ?? 'Unknown'}:
-                    </span>{' '}
-                    <span>{m.text}</span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {new Date(m.ts).toLocaleTimeString()}
-                    </span>
+                  <div
+                    key={u.id}
+                    className={`flex items-center justify-between p-2 rounded-md text-xs cursor-pointer transition-colors ${
+                      selectedUser?.id === u.id ? 'bg-blue-600/30 border border-blue-500/50' : 'bg-white/5 border border-transparent'
+                    }`}
+                    onClick={() => setSelectedUser(u)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <UserIcon className="w-3 h-3 text-blue-400" />
+                      <span className="font-medium truncate max-w-[100px]">{u.displayName || u.name}</span>
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); deleteUser(u.id); }} className="text-slate-500 hover:text-red-400">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 ))}
               </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="glass-dark border-white/10 text-white">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Shield className="w-4 h-4 text-purple-400" />
+              Storage Indices
+            </CardTitle>
+            <CardDescription className="text-slate-400 text-xs">
+              Efficiently list entities via Index DO
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-[10px] font-bold uppercase text-slate-500">Create Chat Board</label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Board name"
+                  value={newChatTitle}
+                  onChange={(e) => setNewChatTitle(e.target.value)}
+                  className="bg-white/5 border-white/10 h-8 text-xs"
+                />
+                <Button size="icon" variant="secondary" className="h-8 w-8 shrink-0" onClick={createChat}>
+                  <Plus className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-1">
+              {chats.map((c) => (
+                <div
+                  key={c.id}
+                  className={`flex items-center gap-2 p-2 rounded-md text-xs cursor-pointer ${
+                    selectedChat?.id === c.id ? 'bg-purple-600/30 border border-purple-500/50' : 'bg-white/5 border border-transparent'
+                  }`}
+                  onClick={() => selectChat(c)}
+                >
+                  <MessageSquare className="w-3 h-3 text-purple-400" />
+                  <span className="font-medium truncate">{c.title}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+      {/* Main - Chat View */}
+      <div className="md:col-span-8 flex flex-col h-[600px]">
+        <Card className="flex-1 glass-dark border-white/10 text-white flex flex-col overflow-hidden">
+          <CardHeader className="border-b border-white/10 pb-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-xl">{selectedChat?.title || 'Select a Board'}</CardTitle>
+                <CardDescription className="text-slate-400 text-xs">
+                  Storage key: {selectedChat ? `chat:${selectedChat.id}` : 'none'}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px] bg-blue-500/10 text-blue-400 border-blue-500/20">
+                  <UserIcon className="w-2 h-2 mr-1" />
+                  {selectedUser?.displayName || selectedUser?.name || 'Guest'}
+                </Badge>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadAll} disabled={loading}>
+                  <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 scroll-smooth" ref={scrollRef}>
+            {messages.length === 0 ? (
+              <div className="h-full flex flex-col items-center justify-center text-slate-500 space-y-2 opacity-50">
+                <Layout className="w-12 h-12" />
+                <p className="text-sm font-medium">No messages yet</p>
+              </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No messages yet.</div>
+              messages.map((m) => {
+                const author = users.find((u) => u.id === m.userId);
+                const isMe = selectedUser?.id === m.userId;
+                return (
+                  <div key={m.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase">
+                        {isMe ? 'You' : (author?.displayName || author?.name || 'Unknown')}
+                      </span>
+                      <span className="text-[8px] text-slate-600">{new Date(m.ts).toLocaleTimeString()}</span>
+                    </div>
+                    <div
+                      className={`max-w-[80%] p-3 rounded-2xl text-sm ${
+                        isMe ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-white/10 text-slate-200 rounded-tl-none'
+                      }`}
+                    >
+                      {m.text}
+                    </div>
+                  </div>
+                );
+              })
             )}
-          </div>
-
-          <form
-            className="flex gap-2"
-            onSubmit={(e) => {
-              e.preventDefault()
-              send().catch(() => {})
-            }}
-          >
-            <Textarea
-              placeholder={selectedUserId && selectedChatId ? 'Write a message…' : 'Select a user and chat first'}
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              disabled={!selectedUserId || !selectedChatId}
-              className="min-h-[44px] max-h-28"
-            />
-            <Button type="submit" className="shrink-0" disabled={!selectedUserId || !selectedChatId || !text.trim()}>
-              Send
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+          </CardContent>
+          <CardFooter className="p-4 border-t border-white/10">
+            <form
+              className="w-full flex gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                sendMessage();
+              }}
+            >
+              <Input
+                placeholder={selectedUser ? "Type a message..." : "Select a user first"}
+                disabled={!selectedUser || !selectedChat}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                className="bg-white/5 border-white/10"
+              />
+              <Button type="submit" disabled={!selectedUser || !selectedChat || !newMessage.trim()} className="shrink-0 bg-blue-600 hover:bg-blue-500">
+                <Send className="w-4 h-4" />
+              </Button>
+            </form>
+          </CardFooter>
+        </Card>
+      </div>
     </div>
-  )
+  );
 }
