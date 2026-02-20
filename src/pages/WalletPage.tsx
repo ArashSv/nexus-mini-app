@@ -11,18 +11,23 @@ import { hapticFeedback } from '@/lib/telegram';
 import { api } from '@/lib/api-client';
 import QRCode from 'react-qr-code';
 import { toast } from 'sonner';
-import { Transaction, WithdrawalRequest } from '@shared/types';
+import { Transaction, WithdrawalRequest, ApiResponse } from '@shared/types';
 import { format } from 'date-fns';
 import { Skeleton } from '@/components/ui/skeleton';
 export function WalletPage() {
-  const user = useAppStore((s) => s.user);
+  const userId = useAppStore((s) => s.user?.id);
+  const balanceNEX = useAppStore((s) => s.user?.balanceNEX);
+  const balanceUSD = useAppStore((s) => s.user?.balanceUSD);
   const address = useTonAddress();
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [withdrawAddress, setWithdrawAddress] = useState('');
   const { data: txData, isLoading, error } = useQuery<{ transactions: Transaction[] }>({
-    queryKey: ['transactions', user?.id],
-    queryFn: () => api<{ transactions: Transaction[] }>(`/api/user/${user?.id}/transactions`),
-    enabled: !!user?.id,
+    queryKey: ['transactions', userId],
+    queryFn: async () => {
+      const res = await api<ApiResponse<{ transactions: Transaction[] }>>(`/api/user/${userId}/transactions`);
+      return res.data!;
+    },
+    enabled: !!userId,
   });
   const handleWithdraw = async () => {
     if (!withdrawAmount || !withdrawAddress) {
@@ -30,13 +35,13 @@ export function WalletPage() {
       return;
     }
     try {
-      const resp = await api<WithdrawalRequest>(`/api/wallet/withdraw`, {
+      const resp = await api<ApiResponse<WithdrawalRequest>>(`/api/wallet/withdraw`, {
         method: 'POST',
         body: JSON.stringify({ amountTON: Number(withdrawAmount), destAddress: withdrawAddress })
       });
       hapticFeedback.notification('success');
       toast.success("Withdrawal initiated!", {
-        description: `Request ID: ${resp.withdrawalId.slice(0, 8)}...`
+        description: `Request ID: ${resp.data?.withdrawalId.slice(0, 8)}...`
       });
       setWithdrawAmount('');
       setWithdrawAddress('');
@@ -55,9 +60,9 @@ export function WalletPage() {
           <div>
             <p className="text-blue-200 text-[10px] font-bold uppercase tracking-widest">Available Balance</p>
             <h2 className="text-4xl font-black text-white mt-1">
-              {user?.balanceNEX?.toLocaleString() ?? 0} <span className="text-xl font-normal text-blue-300">NEX</span>
+              {balanceNEX?.toLocaleString() ?? 0} <span className="text-xl font-normal text-blue-300">NEX</span>
             </h2>
-            <p className="text-slate-400 text-xs mt-1 font-medium">≈ ${user?.balanceUSD?.toFixed(2) || '0.00'} USD</p>
+            <p className="text-slate-400 text-xs mt-1 font-medium">≈ ${balanceUSD?.toFixed(2) || '0.00'} USD</p>
           </div>
           <Zap className="w-8 h-8 text-yellow-400 fill-current animate-pulse" />
         </div>
@@ -82,7 +87,8 @@ export function WalletPage() {
             <DialogHeader><DialogTitle className="text-center">Deposit Assets</DialogTitle></DialogHeader>
             <div className="flex flex-col items-center gap-6 py-4">
               <div className="p-4 bg-white rounded-2xl">
-                <QRCode value={address || 'Connect Wallet to see address'} size={180} />
+                {address && <QRCode value={address} size={180} />}
+                {!address && <div className="w-[180px] h-[180px] bg-slate-800 flex items-center justify-center text-center text-xs p-4 text-slate-400">Please connect your wallet to see the address</div>}
               </div>
               <p className="text-center text-xs text-slate-400 px-4">Transfer TON or NEX to this address to top up your balance.</p>
               <Button disabled={!address} className="w-full h-12 rounded-xl bg-blue-600 font-bold" onClick={() => { if(address) { navigator.clipboard.writeText(address); toast.success("Copied!"); }}}>
@@ -150,7 +156,7 @@ export function WalletPage() {
                 </div>
               </GlassCard>
             ))}
-            {txData?.transactions.length === 0 && (
+            {(!txData?.transactions || txData.transactions.length === 0) && (
               <p className="text-center text-slate-600 text-sm py-10 italic">No recent activity.</p>
             )}
           </div>

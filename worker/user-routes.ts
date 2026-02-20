@@ -5,8 +5,14 @@ import type { User, Task, Transaction, Referral, TaskResponse } from "@shared/ty
 export function userRoutes(app: Hono<{ Bindings: Env }>) {
   // AUTH
   app.post('/api/auth/verify', async (c) => {
-    const initData = await c.req.text();
-
+    let initData = '';
+    try {
+      const body = await c.req.json();
+      initData = body.initData || '';
+    } catch (e) {
+      // Fallback for non-JSON or missing body
+      initData = 'demo';
+    }
     if (!initData || initData === 'demo') {
       const mockUser: User = {
         id: 'u_12345',
@@ -21,14 +27,12 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       };
       return ok(c, mockUser);
     }
-
     // Simple hash-based userId derivation (mock verification)
     const encoder = new TextEncoder();
     const data = encoder.encode(initData);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const userId = 'u_' + hashArray.slice(0, 8).map(b => b.toString(16).padStart(2, '0')).join('');
-    
     const user: User = {
       id: userId,
       displayName: 'Telegram User',
@@ -40,7 +44,6 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
       referralCount: 0,
       walletAddress: undefined
     };
-    
     return ok(c, user);
   });
   // USER PROFILE
@@ -95,8 +98,8 @@ export function userRoutes(app: Hono<{ Bindings: Env }>) {
   app.get('/api/user/:userId/transactions', async (c) => {
     const limit = c.req.query('limit') || '20';
     const txs: Transaction[] = [
-      { id: 'tx1', timestamp: Date.now(), type: 'in' as const, amountTON: 1.5, status: 'success', txHash: 'abc123' },
-      { id: 'tx2', timestamp: Date.now() - 86400000, type: 'in' as const, amountTON: 2.0, status: 'success', txHash: 'def456' }
+      { id: 'tx1', timestamp: Date.now(), type: 'in' as const, amountTON: 1.5, amountNEX: 150, status: 'success', txHash: 'abc123' },
+      { id: 'tx2', timestamp: Date.now() - 86400000, type: 'in' as const, amountTON: 2.0, amountNEX: 200, status: 'success', txHash: 'def456' }
     ];
     return ok(c, { transactions: txs.slice(0, parseInt(limit)) });
   });

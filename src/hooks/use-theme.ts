@@ -1,18 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { getTelegramWebApp } from '@/lib/telegram';
+function getInitialTheme(): boolean {
+  if (typeof window === 'undefined') return true;
+  const tg = getTelegramWebApp();
+  if (tg?.colorScheme) {
+    return tg.colorScheme === 'dark';
+  }
+  const savedTheme = localStorage.getItem('theme');
+  if (savedTheme) {
+    return savedTheme === 'dark';
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
 export function useTheme() {
-  const getInitialTheme = useCallback(() => {
-    const tg = getTelegramWebApp();
-    if (tg?.colorScheme) {
-      return tg.colorScheme === 'dark';
-    }
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme) {
-      return savedTheme === 'dark';
-    }
-    return window.matchMedia('(prefers-color-scheme: dark)').matches;
-  }, []);
-  const [isDark, setIsDark] = useState(getInitialTheme);
+  const [isDark, setIsDark] = useState<boolean>(getInitialTheme);
   useEffect(() => {
     const root = window.document.documentElement;
     if (isDark) {
@@ -32,8 +33,8 @@ export function useTheme() {
     tg.onEvent('themeChanged', handleThemeChange);
     return () => tg.offEvent('themeChanged', handleThemeChange);
   }, []);
-  const toggleTheme = () => {
+  const toggleTheme = useCallback(() => {
     setIsDark(prev => !prev);
-  };
+  }, []);
   return { isDark, toggleTheme };
 }

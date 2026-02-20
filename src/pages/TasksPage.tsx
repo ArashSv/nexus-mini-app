@@ -9,21 +9,26 @@ import { api } from '@/lib/api-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
-import { Task, TaskResponse } from '@shared/types';
+import { Task, TaskResponse, ApiResponse } from '@shared/types';
 export function TasksPage() {
   const queryClient = useQueryClient();
   const userId = useAppStore((s) => s.user?.id);
   const updateBalance = useAppStore((s) => s.updateBalance);
   const { data, isLoading, isRefetching, refetch } = useQuery<TaskResponse>({
     queryKey: ['tasks', userId],
-    queryFn: () => api<TaskResponse>(`/api/user/${userId || 'me'}/tasks`),
+    queryFn: async () => {
+      const res = await api<ApiResponse<TaskResponse>>(`/api/user/${userId || 'me'}/tasks`);
+      return res.data!;
+    },
     enabled: !!userId,
   });
   const completeMutation = useMutation({
-    mutationFn: (taskId: string) =>
-      api<{ ok: boolean; updatedTask: Task }>(`/api/user/${userId || 'me'}/tasks/${taskId}/complete`, {
+    mutationFn: async (taskId: string) => {
+      const res = await api<ApiResponse<{ ok: boolean; updatedTask: Task }>>(`/api/user/${userId || 'me'}/tasks/${taskId}/complete`, {
         method: 'POST',
-      }),
+      });
+      return res.data!;
+    },
     onSuccess: (resp) => {
       hapticFeedback.notification('success');
       updateBalance(resp.updatedTask.reward);
@@ -74,6 +79,7 @@ export function TasksPage() {
             size="sm"
             disabled={task.done || completeMutation.isPending}
             onClick={() => {
+              if (task.done) return;
               hapticFeedback.impact('light');
               completeMutation.mutate(task.id);
             }}
@@ -84,7 +90,7 @@ export function TasksPage() {
                 : "bg-blue-600 hover:bg-blue-500 text-white"
             )}
           >
-            {task.done ? "Claimed" : "Start"}
+            {task.done ? "Claimed" : (completeMutation.isPending ? "..." : "Start")}
           </Button>
         </div>
       </GlassCard>
@@ -97,9 +103,9 @@ export function TasksPage() {
           <h1 className="text-2xl font-display font-black text-white">Nexus Hub</h1>
           <p className="text-slate-400 text-sm">Complete missions for NEX rewards.</p>
         </div>
-        <Button 
-          variant="ghost" 
-          size="icon" 
+        <Button
+          variant="ghost"
+          size="icon"
           className="rounded-full bg-white/5 hover:bg-white/10"
           onClick={() => {
             hapticFeedback.impact('medium');

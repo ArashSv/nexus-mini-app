@@ -8,16 +8,20 @@ import { hapticFeedback } from '@/lib/telegram';
 import { api } from '@/lib/api-client';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
-import { Referral } from '@shared/types';
+import { Referral, ApiResponse } from '@shared/types';
 import { format } from 'date-fns';
 export function ReferralPage() {
-  const user = useAppStore((s) => s.user);
+  const userId = useAppStore((s) => s.user?.id);
+  const storeReferralLink = useAppStore((s) => s.user?.referralLink);
   const { data: refData, isLoading } = useQuery<Referral>({
-    queryKey: ['referrals', user?.id],
-    queryFn: () => api<Referral>(`/api/user/${user?.id}/referral`),
-    enabled: !!user?.id,
+    queryKey: ['referrals', userId],
+    queryFn: async () => {
+      const res = await api<ApiResponse<Referral>>(`/api/user/${userId}/referral`);
+      return res.data!;
+    },
+    enabled: !!userId,
   });
-  const referralLink = refData?.link || user?.referralLink || '';
+  const referralLink = refData?.link || storeReferralLink || '';
   const handleCopy = () => {
     if (referralLink) {
       navigator.clipboard.writeText(referralLink);

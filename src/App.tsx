@@ -8,7 +8,7 @@ import { api } from '@/lib/api-client';
 import { Toaster } from '@/components/ui/sonner';
 import { getTelegramWebApp, expandWebApp } from '@/lib/telegram';
 import { User } from '@shared/types';
-import ErrorBoundary from '@/components/ErrorBoundary';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 // Lazy loaded pages for performance
 const TasksPage = lazy(() => import('@/pages/TasksPage').then(m => ({ default: m.TasksPage })));
 const WalletPage = lazy(() => import('@/pages/WalletPage').then(m => ({ default: m.WalletPage })));
@@ -37,11 +37,11 @@ const router = createBrowserRouter([
 ]);
 function GlobalLoading() {
   return (
-    <div className="fixed inset-0 bg-background flex flex-col items-center justify-center z-[100]">
-      <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+    <div className="fixed inset-0 bg-[#0F172A] flex flex-col items-center justify-center z-[100]">
+      <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-blue-500 to-indigo-600 animate-pulse flex items-center justify-center shadow-glow">
+        <div className="w-8 h-8 border-4 border-white/20 border-t-white rounded-full animate-spin" />
       </div>
-      <p className="mt-4 text-sm font-medium text-muted-foreground">Nexus is loading...</p>
+      <p className="mt-6 text-sm font-bold tracking-widest text-blue-400 uppercase animate-pulse">Initializing Nexus</p>
     </div>
   );
 }
@@ -51,25 +51,27 @@ export default function App() {
   useEffect(() => {
     const initApp = async () => {
       const tg = getTelegramWebApp();
-      tg?.ready();
-      expandWebApp();
+      if (tg) {
+        tg.ready();
+        expandWebApp();
+      }
       try {
-        // Try to load cached user first for instant UX
         const cached = localStorage.getItem('nexus_user');
         if (cached) {
           setUser(JSON.parse(cached));
         }
         const initData = tg?.initData || 'demo';
-        const userData = await api<User>('/api/auth/verify', {
+        // Match the backend expectation: JSON body with initData field
+        const response = await api<{ success: boolean; data: User }>('/api/auth/verify', {
           method: 'POST',
           body: JSON.stringify({ initData })
         });
-        if (userData && typeof userData === 'object') {
-          setUser(userData);
-          localStorage.setItem('nexus_user', JSON.stringify(userData));
+        if (response?.success && response?.data) {
+          setUser(response.data);
+          localStorage.setItem('nexus_user', JSON.stringify(response.data));
         }
       } catch (e) {
-        console.warn("[APP] Auth fallback used:", e);
+        console.warn("[APP] Auth verification failed. Falling back to demo mode.", e);
       } finally {
         setLoaded(true);
       }
