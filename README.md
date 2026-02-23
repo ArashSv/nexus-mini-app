@@ -1,6 +1,6 @@
 # Cloudflare Workers React Boilerplate
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ArashSv/nexus-mini-app)
 
 A production-ready full-stack template for building scalable applications on Cloudflare Workers. Features a type-safe TypeScript backend using Durable Objects for stateful entities (Users, Chats, Messages), paired with a modern React frontend powered by Vite, Tailwind CSS, and shadcn/ui.
 
@@ -129,7 +129,7 @@ wrangler deploy
 
 **Custom Domain**: Edit `wrangler.jsonc` – supports SPA routing and API proxying.
 
-[cloudflarebutton]
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ArashSv/nexus-mini-app)
 
 ### Environment
 - Durable Objects auto-migrate via `wrangler.jsonc`.
